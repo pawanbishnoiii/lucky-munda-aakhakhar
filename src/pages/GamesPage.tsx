@@ -2,89 +2,80 @@ import Header from "@/components/Header";
 import GameCard from "@/components/GameCard";
 import CountdownTimer from "@/components/CountdownTimer";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-const allGames = [
-  { title: "New Gali", subtitle: "Munda & Aakhar", nextResult: "2:30 PM", multiplier: "93x", players: 1247, color: "red" as const, status: "live" as const, time: "14:30" },
-  { title: "Desawar", subtitle: "Munda & Aakhar", nextResult: "5:00 PM", multiplier: "93x", players: 892, color: "blue" as const, status: "upcoming" as const, time: "17:00" },
-  { title: "Faridabad", subtitle: "Munda & Aakhar", nextResult: "6:15 PM", multiplier: "93x", players: 654, color: "green" as const, status: "upcoming" as const, time: "18:15" },
-  { title: "Ghaziabad", subtitle: "Munda & Aakhar", nextResult: "7:00 PM", multiplier: "93x", players: 543, color: "purple" as const, status: "upcoming" as const, time: "19:00" },
-  { title: "Mumbai Morning", subtitle: "Aakhar Only", nextResult: "10:30 AM", multiplier: "90x", players: 320, color: "orange" as const, status: "closed" as const, time: "10:30" },
-  { title: "Delhi Bazaar", subtitle: "Munda Only", nextResult: "8:00 PM", multiplier: "95x", players: 410, color: "cyan" as const, status: "upcoming" as const, time: "20:00" },
-];
+const colorOptions = ["red", "blue", "green", "purple", "orange", "cyan"] as const;
 
 const GamesPage = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "live" | "upcoming" | "closed">("all");
+  const [games, setGames] = useState<any[]>([]);
 
-  const filtered = allGames.filter((g) => {
-    if (filter !== "all" && g.status !== filter) return false;
-    if (search && !g.title.toLowerCase().includes(search.toLowerCase())) return false;
+  useEffect(() => {
+    supabase.from("games").select("*").eq("is_active", true).order("result_time")
+      .then(({ data }) => setGames(data || []));
+  }, []);
+
+  const getStatus = (resultTime: string) => {
+    const now = new Date();
+    const [h, m] = resultTime.split(":").map(Number);
+    const gameTime = new Date(); gameTime.setHours(h, m, 0);
+    const diff = gameTime.getTime() - now.getTime();
+    if (diff < 0) return "closed";
+    if (diff < 3600000) return "live";
+    return "upcoming";
+  };
+
+  const filtered = games.filter((g) => {
+    const status = getStatus(g.result_time);
+    if (filter !== "all" && status !== filter) return false;
+    if (search && !(g.name.toLowerCase().includes(search.toLowerCase()) || g.name_hindi?.toLowerCase().includes(search.toLowerCase()))) return false;
     return true;
   });
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <Header title="Games" />
+      <Header title="गेम्स" />
 
       <div className="px-4 py-3">
-        {/* Search */}
         <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-2 mb-3">
           <Search className="w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search games..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent text-foreground text-sm w-full outline-none placeholder:text-muted-foreground"
-          />
+          <input type="text" placeholder="गेम खोजें..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-transparent text-foreground text-sm w-full outline-none placeholder:text-muted-foreground" />
         </div>
 
-        {/* Filter chips */}
         <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide">
           {(["all", "live", "upcoming", "closed"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold capitalize whitespace-nowrap transition-all ${
-                filter === f
-                  ? "gradient-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              {f === "all" ? "All Games" : f}
+            <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-xl text-xs font-semibold capitalize whitespace-nowrap transition-all ${filter === f ? "gradient-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"}`}>
+              {f === "all" ? "सभी गेम्स" : f === "live" ? "🔴 लाइव" : f === "upcoming" ? "🕐 आने वाले" : "बंद"}
             </button>
           ))}
         </div>
 
-        {/* Countdown Timers */}
         <div className="flex gap-3 overflow-x-auto scrollbar-hide mb-4 pb-1">
-          {allGames.filter(g => g.status !== "closed").map((g) => (
-            <div key={g.title} className="glass rounded-xl p-3 min-w-[140px] flex-shrink-0">
-              <p className="text-foreground font-semibold text-xs mb-2">{g.title}</p>
-              <CountdownTimer targetTime={g.time} label="Closes in" />
+          {games.filter(g => getStatus(g.result_time) !== "closed").map((g) => (
+            <div key={g.id} className="glass rounded-xl p-3 min-w-[140px] flex-shrink-0">
+              <p className="text-foreground font-semibold text-xs mb-2">{g.name_hindi || g.name}</p>
+              <CountdownTimer targetTime={g.result_time} label="बंद होने में" />
             </div>
           ))}
         </div>
 
-        {/* Games List */}
         <div className="flex flex-col gap-4">
           {filtered.map((game, i) => (
-            <motion.div
-              key={game.title}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08 }}
-            >
-              <GameCard {...game} />
+            <motion.div key={game.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+              <GameCard
+                title={game.name_hindi || game.name}
+                subtitle={game.game_type === "both" ? "मुंडा और आखर" : game.game_type === "munda" ? "मुंडा" : "आखर"}
+                nextResult={game.result_time}
+                multiplier={`${game.payout_percentage}x`}
+                color={colorOptions[i % colorOptions.length]}
+                status={getStatus(game.result_time)}
+              />
             </motion.div>
           ))}
-          {filtered.length === 0 && (
-            <div className="text-center py-10 text-muted-foreground">
-              No games found
-            </div>
-          )}
+          {filtered.length === 0 && <div className="text-center py-10 text-muted-foreground">कोई गेम नहीं मिला</div>}
         </div>
       </div>
     </div>
