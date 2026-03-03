@@ -1,14 +1,16 @@
 import Header from "@/components/Header";
 import { motion } from "framer-motion";
-import { User, Mail, Lock, Eye, EyeOff, ChevronRight, Shield, History, Settings, HelpCircle, LogOut, MessageSquare, Send, Ticket } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, ChevronRight, Shield, History, HelpCircle, LogOut, Send, Ticket, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const ProfilePage = () => {
   const { user, loading, signIn, signUp, signOut, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -22,6 +24,8 @@ const ProfilePage = () => {
   const [tickets, setTickets] = useState<any[]>([]);
   const [telegramLink, setTelegramLink] = useState("");
   const [profile, setProfile] = useState<any>(null);
+  const [bets, setBets] = useState<any[]>([]);
+  const [showBets, setShowBets] = useState(false);
 
   useEffect(() => {
     supabase.from("admin_settings").select("*").eq("key", "telegram_link").maybeSingle()
@@ -34,14 +38,13 @@ const ProfilePage = () => {
         .then(({ data }) => setProfile(data));
       supabase.from("support_tickets").select("*").eq("user_id", user.id).order("created_at", { ascending: false })
         .then(({ data }) => setTickets(data || []));
+      supabase.from("bets").select("*, games(name, name_hindi)").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50)
+        .then(({ data }) => setBets(data || []));
     }
   }, [user]);
 
   const handleAuth = async () => {
-    if (!email || !password) {
-      toast({ title: "कृपया सभी फ़ील्ड भरें", variant: "destructive" });
-      return;
-    }
+    if (!email || !password) { toast({ title: "कृपया सभी फ़ील्ड भरें", variant: "destructive" }); return; }
     setSubmitting(true);
     if (isLogin) {
       const { error } = await signIn(email, password);
@@ -70,16 +73,14 @@ const ProfilePage = () => {
     setTickets(data || []);
   };
 
-  if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
-  }
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="min-h-screen bg-background bg-dots pb-24">
         <Header title="Account" />
         <div className="px-4 pt-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 text-center">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl p-6 text-center border border-border/50 shadow-sm">
             <div className="w-16 h-16 gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-primary">
               <User className="w-8 h-8 text-primary-foreground" />
             </div>
@@ -126,19 +127,12 @@ const ProfilePage = () => {
     );
   }
 
-  const menuItems = [
-    { icon: History, label: "Bet History", desc: "अपनी सभी बेट देखें", onClick: () => {} },
-    { icon: Shield, label: "Responsible Gaming", desc: "सीमा और नियंत्रण सेट करें", onClick: () => {} },
-    ...(showHelp ? [] : [{ icon: HelpCircle, label: "Help & Support", desc: "कभी भी मदद लें", onClick: () => setShowHelp(true) }]),
-  ];
-
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Header title="Profile" />
+    <div className="min-h-screen bg-background bg-dots pb-24">
+      <Header title="प्रोफ़ाइल" />
 
-      {/* Profile Card */}
       <div className="px-4 pt-4">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-5">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl p-5 border border-border/50 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 gradient-primary rounded-2xl flex items-center justify-center shadow-glow-primary">
               <User className="w-7 h-7 text-primary-foreground" />
@@ -153,20 +147,43 @@ const ProfilePage = () => {
       </div>
 
       <div className="px-4 pt-3 space-y-2">
-        {menuItems.map((item, i) => (
-          <motion.button key={item.label} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} onClick={item.onClick} className="w-full glass rounded-xl p-4 flex items-center justify-between hover:bg-secondary/50 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center"><item.icon className="w-4 h-4 text-primary" /></div>
-              <div className="text-left"><p className="text-foreground font-medium text-sm">{item.label}</p><p className="text-muted-foreground text-xs">{item.desc}</p></div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </motion.button>
-        ))}
+        {/* Bet History */}
+        <motion.button initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} onClick={() => setShowBets(!showBets)} className="w-full bg-card rounded-xl p-4 flex items-center justify-between hover:bg-secondary/50 transition-colors border border-border/50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center"><History className="w-4 h-4 text-primary" /></div>
+            <div className="text-left"><p className="text-foreground font-medium text-sm">बेट हिस्ट्री</p><p className="text-muted-foreground text-xs">अपनी सभी बेट देखें</p></div>
+          </div>
+          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showBets ? "rotate-90" : ""}`} />
+        </motion.button>
 
-        {/* Help Section */}
+        {showBets && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl p-3 space-y-2 border border-border/50">
+            {bets.length > 0 ? bets.slice(0, 20).map(b => (
+              <div key={b.id} className="flex items-center justify-between bg-secondary rounded-lg px-3 py-2">
+                <div>
+                  <p className="text-foreground text-xs font-medium">{(b as any).games?.name_hindi || (b as any).games?.name}</p>
+                  <p className="text-muted-foreground text-[10px]">{b.bet_type === "munda" ? "मुंडा" : "आखर"} #{b.number} · {new Date(b.created_at).toLocaleDateString("hi-IN")}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono font-bold text-sm text-foreground">₹{parseFloat(b.amount).toFixed(0)}</p>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${b.status === "won" ? "bg-game-green/10 text-game-green" : b.status === "lost" ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent"}`}>{b.status}</span>
+                </div>
+              </div>
+            )) : <p className="text-muted-foreground text-xs text-center py-4">कोई बेट नहीं</p>}
+          </motion.div>
+        )}
+
+        {/* Help */}
+        <motion.button initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 }} onClick={() => setShowHelp(!showHelp)} className="w-full bg-card rounded-xl p-4 flex items-center justify-between hover:bg-secondary/50 transition-colors border border-border/50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center"><HelpCircle className="w-4 h-4 text-primary" /></div>
+            <div className="text-left"><p className="text-foreground font-medium text-sm">Help & Support</p><p className="text-muted-foreground text-xs">कभी भी मदद लें</p></div>
+          </div>
+          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showHelp ? "rotate-90" : ""}`} />
+        </motion.button>
+
         {showHelp && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="glass rounded-xl p-4 space-y-3">
-            <h4 className="font-display font-bold text-foreground text-sm flex items-center gap-2"><HelpCircle className="w-4 h-4 text-primary" /> Help & Support</h4>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl p-4 space-y-3 border border-border/50">
             {telegramLink && (
               <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-secondary rounded-xl p-3 hover:bg-secondary/80 transition-colors">
                 <Send className="w-4 h-4 text-game-blue" />
@@ -191,7 +208,7 @@ const ProfilePage = () => {
                   <div key={t.id} className="bg-secondary rounded-xl p-3">
                     <div className="flex justify-between items-start">
                       <p className="text-foreground text-sm font-medium">{t.subject}</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${t.status === "open" ? "bg-accent/10 text-accent" : t.status === "resolved" ? "bg-game-green/10 text-game-green" : "bg-primary/10 text-primary"}`}>{t.status}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${t.status === "open" ? "bg-accent/10 text-accent" : "bg-game-green/10 text-game-green"}`}>{t.status}</span>
                     </div>
                     {t.admin_reply && <p className="text-game-green text-xs mt-1">Admin: {t.admin_reply}</p>}
                   </div>
@@ -201,18 +218,16 @@ const ProfilePage = () => {
           </motion.div>
         )}
 
-        {/* Admin Link */}
+        {/* Admin */}
         {isAdmin && (
-          <motion.a href="/admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="block w-full glass rounded-xl p-4 hover:bg-secondary/50 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-accent/10 rounded-xl flex items-center justify-center"><Settings className="w-4 h-4 text-accent" /></div>
-              <div className="text-left"><p className="text-foreground font-medium text-sm">Admin Dashboard</p><p className="text-muted-foreground text-xs">Manage everything</p></div>
-            </div>
-          </motion.a>
+          <motion.button onClick={() => navigate("/admin")} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full bg-card rounded-xl p-4 flex items-center gap-3 hover:bg-secondary/50 transition-colors border border-border/50">
+            <div className="w-9 h-9 bg-accent/10 rounded-xl flex items-center justify-center"><Settings className="w-4 h-4 text-accent" /></div>
+            <div className="text-left"><p className="text-foreground font-medium text-sm">Admin Dashboard</p><p className="text-muted-foreground text-xs">Manage everything</p></div>
+          </motion.button>
         )}
 
         {/* Logout */}
-        <button onClick={signOut} className="w-full glass rounded-xl p-4 flex items-center gap-3 hover:bg-destructive/10 transition-colors">
+        <button onClick={signOut} className="w-full bg-card rounded-xl p-4 flex items-center gap-3 hover:bg-destructive/5 transition-colors border border-border/50">
           <div className="w-9 h-9 bg-destructive/10 rounded-xl flex items-center justify-center"><LogOut className="w-4 h-4 text-destructive" /></div>
           <p className="text-destructive font-medium text-sm">Logout</p>
         </button>
