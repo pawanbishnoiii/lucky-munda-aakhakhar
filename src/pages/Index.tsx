@@ -34,17 +34,21 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background bg-grid pb-24 relative">
+      {/* Decorative elements */}
+      <div className="fixed top-0 right-0 w-64 h-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+      <div className="fixed bottom-40 left-0 w-48 h-48 rounded-full bg-accent/5 blur-3xl pointer-events-none" />
+
       <Header />
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 pt-4 pb-2">
-        <div className="glass rounded-2xl p-5 relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-primary/10 blur-2xl" />
-          <div className="absolute -left-10 -bottom-10 w-32 h-32 rounded-full bg-accent/10 blur-2xl" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-4 pt-4 pb-2 relative">
+        <div className="bg-card rounded-2xl p-5 relative overflow-hidden border border-border/50 shadow-sm">
+          <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-primary/5 blur-2xl" />
+          <div className="absolute -left-10 -bottom-10 w-32 h-32 rounded-full bg-accent/5 blur-2xl" />
           <div className="relative z-10">
             <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
               <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold mb-3"><Sparkles className="w-3 h-3" /> BK Matka में आपका स्वागत है</span>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-1">समझदारी से खेलो, <span className="text-gradient-gold">बड़ा जीतो</span></h2>
+              <h1 className="font-display text-2xl font-bold text-foreground mb-1">समझदारी से खेलो, <span className="text-gradient-gold">बड़ा जीतो</span></h1>
               <p className="text-muted-foreground text-sm mb-4">India का सबसे भरोसेमंद Matka platform</p>
               <div className="flex gap-2">
                 <button onClick={() => navigate("/games")} className="gradient-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-semibold shadow-glow-primary hover:opacity-90 transition-opacity flex items-center gap-1.5">अभी खेलें <ArrowRight className="w-4 h-4" /></button>
@@ -63,7 +67,7 @@ const Index = () => {
           { icon: TrendingUp, label: "Total Payout", value: "₹2.5Cr+", bg: "bg-game-green/10", text: "text-game-green" },
           { icon: Shield, label: "Verified", value: "100% Safe", bg: "bg-game-blue/10", text: "text-game-blue" },
         ].map((s) => (
-          <div key={s.label} className={`${s.bg} rounded-xl p-3 flex-1 flex items-center gap-3`}>
+          <div key={s.label} className={`${s.bg} rounded-xl p-3 flex-1 flex items-center gap-3 border border-border/30`}>
             <s.icon className={`w-5 h-5 ${s.text}`} />
             <div><p className="text-muted-foreground text-[10px]">{s.label}</p><p className={`font-display font-bold text-sm ${s.text}`}>{s.value}</p></div>
           </div>
@@ -85,10 +89,11 @@ const Index = () => {
                 multiplier={`${game.payout_percentage}x`}
                 color={colorOptions[i % colorOptions.length]}
                 status={getStatus(game.result_time)}
-                onPlay={() => navigate("/games")}
+                onPlay={() => navigate(`/bet/${game.id}`)}
               />
             </motion.div>
           ))}
+          {games.length === 0 && <p className="text-center text-muted-foreground py-8">गेम्स लोड हो रहे हैं...</p>}
         </div>
       </div>
 

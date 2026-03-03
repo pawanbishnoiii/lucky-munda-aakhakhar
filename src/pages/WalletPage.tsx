@@ -1,6 +1,6 @@
 import Header from "@/components/Header";
 import { motion } from "framer-motion";
-import { Plus, ArrowDownLeft, ArrowUpRight, QrCode, User, LogIn, CreditCard, Building2 } from "lucide-react";
+import { Plus, ArrowDownLeft, ArrowUpRight, QrCode, LogIn, CreditCard, Building2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,9 +51,9 @@ const WalletPage = () => {
   if (!user) {
     return (
       <div className="min-h-screen bg-background pb-24">
-        <Header title="Wallet" />
+        <Header title="वॉलेट" />
         <div className="px-4 pt-10">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-8 text-center">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl p-8 text-center border border-border/50 shadow-sm">
             <div className="w-16 h-16 gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-primary"><LogIn className="w-8 h-8 text-primary-foreground" /></div>
             <h2 className="font-display font-bold text-xl text-foreground mb-2">Login Required</h2>
             <p className="text-muted-foreground text-sm mb-6">Wallet का उपयोग करने के लिए पहले Login करें</p>
@@ -100,8 +100,6 @@ const WalletPage = () => {
     });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else {
-      // Deduct from wallet
-      await supabase.from("wallets").update({ balance: parseFloat(wallet.balance) - amt }).eq("user_id", user.id);
       toast({ title: "✅ Withdraw Request Submitted!" });
       setWithdrawAmount("");
       const { data: w } = await supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle();
@@ -114,24 +112,22 @@ const WalletPage = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <Header title="Wallet" />
+      <Header title="वॉलेट" />
 
-      {/* Balance Card */}
       <div className="px-4 pt-3">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="gradient-primary rounded-2xl p-5 shadow-glow-primary relative overflow-hidden">
           <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-foreground/5" />
-          <p className="text-primary-foreground/70 text-sm">Total Balance</p>
+          <p className="text-primary-foreground/70 text-sm">कुल बैलेंस</p>
           <h2 className="font-display font-bold text-3xl text-primary-foreground mt-1">₹{wallet ? parseFloat(wallet.balance).toFixed(2) : "0.00"}</h2>
           <div className="flex gap-3 mt-4">
-            <button onClick={() => setActiveTab("deposit")} className="bg-foreground/20 text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 hover:bg-foreground/30 transition-colors"><Plus className="w-4 h-4" /> Add Money</button>
-            <button onClick={() => setActiveTab("withdraw")} className="bg-foreground/10 text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 hover:bg-foreground/20 transition-colors"><ArrowUpRight className="w-4 h-4" /> Withdraw</button>
+            <button onClick={() => setActiveTab("deposit")} className="bg-foreground/20 text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 hover:bg-foreground/30 transition-colors"><Plus className="w-4 h-4" /> जमा करें</button>
+            <button onClick={() => setActiveTab("withdraw")} className="bg-foreground/10 text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 hover:bg-foreground/20 transition-colors"><ArrowUpRight className="w-4 h-4" /> निकालें</button>
           </div>
         </motion.div>
       </div>
 
-      {/* Deposit/Withdraw */}
       <div className="px-4 mt-4">
-        <div className="glass rounded-2xl p-4">
+        <div className="bg-card rounded-2xl p-4 border border-border/50 shadow-sm">
           <div className="flex gap-2 mb-4">
             {(["deposit", "withdraw"] as const).map((tab) => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all ${activeTab === tab ? "gradient-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}>{tab === "deposit" ? "जमा करें" : "निकालें"}</button>
@@ -167,7 +163,7 @@ const WalletPage = () => {
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-3">
                   <input type="text" placeholder="UPI ID (eg: name@upi)" value={upiId} onChange={(e) => setUpiId(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
                   {!upiInfoSaved && upiId && (
-                    <button onClick={() => setUpiInfoSaved(true)} className="w-full bg-game-green/20 text-game-green py-2.5 rounded-xl font-semibold text-sm">✅ Save UPI Info</button>
+                    <button onClick={() => setUpiInfoSaved(true)} className="w-full bg-game-green/15 text-game-green py-2.5 rounded-xl font-semibold text-sm">✅ Save UPI Info</button>
                   )}
                 </motion.div>
               )}
@@ -179,7 +175,7 @@ const WalletPage = () => {
                   <input type="text" placeholder="Confirm Account Number" value={confirmAccountNumber} onChange={(e) => setConfirmAccountNumber(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
                   <input type="text" placeholder="IFSC Code" value={bankIfsc} onChange={(e) => setBankIfsc(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
                   {!bankInfoSaved && bankHolderName && bankAccountNumber && bankIfsc && (
-                    <button onClick={() => { if (bankAccountNumber !== confirmAccountNumber) { toast({ title: "Account numbers don't match!", variant: "destructive" }); return; } setBankInfoSaved(true); }} className="w-full bg-game-green/20 text-game-green py-2.5 rounded-xl font-semibold text-sm">✅ Save Bank Info</button>
+                    <button onClick={() => { if (bankAccountNumber !== confirmAccountNumber) { toast({ title: "Account numbers don't match!", variant: "destructive" }); return; } setBankInfoSaved(true); }} className="w-full bg-game-green/15 text-game-green py-2.5 rounded-xl font-semibold text-sm">✅ Save Bank Info</button>
                   )}
                 </motion.div>
               )}
@@ -192,12 +188,11 @@ const WalletPage = () => {
         </div>
       </div>
 
-      {/* Transaction History */}
       <div className="px-4 mt-4">
         <h3 className="font-display font-bold text-foreground mb-3">लेनदेन इतिहास</h3>
         <div className="space-y-2">
           {transactions.map((tx) => (
-            <motion.div key={tx.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="glass rounded-xl p-3 flex items-center justify-between">
+            <motion.div key={tx.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="bg-card rounded-xl p-3 flex items-center justify-between border border-border/50">
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${tx.type === "deposit" || tx.type === "win" ? "bg-game-green/10" : "bg-destructive/10"}`}>
                   {tx.type === "deposit" || tx.type === "win" ? <ArrowDownLeft className="w-4 h-4 text-game-green" /> : <ArrowUpRight className="w-4 h-4 text-destructive" />}

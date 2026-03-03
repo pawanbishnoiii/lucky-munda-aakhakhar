@@ -4,6 +4,7 @@ import CountdownTimer from "@/components/CountdownTimer";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 const colorOptions = ["red", "blue", "green", "purple", "orange", "cyan"] as const;
@@ -12,6 +13,7 @@ const GamesPage = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "live" | "upcoming" | "closed">("all");
   const [games, setGames] = useState<any[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     supabase.from("games").select("*").eq("is_active", true).order("result_time")
@@ -36,11 +38,11 @@ const GamesPage = () => {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background bg-dots pb-24">
       <Header title="गेम्स" />
 
       <div className="px-4 py-3">
-        <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-2 mb-3">
+        <div className="bg-card rounded-xl px-3 py-2.5 flex items-center gap-2 mb-3 border border-border/50 shadow-sm">
           <Search className="w-4 h-4 text-muted-foreground" />
           <input type="text" placeholder="गेम खोजें..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-transparent text-foreground text-sm w-full outline-none placeholder:text-muted-foreground" />
         </div>
@@ -55,7 +57,7 @@ const GamesPage = () => {
 
         <div className="flex gap-3 overflow-x-auto scrollbar-hide mb-4 pb-1">
           {games.filter(g => getStatus(g.result_time) !== "closed").map((g) => (
-            <div key={g.id} className="glass rounded-xl p-3 min-w-[140px] flex-shrink-0">
+            <div key={g.id} className="bg-card rounded-xl p-3 min-w-[140px] flex-shrink-0 border border-border/50 shadow-sm">
               <p className="text-foreground font-semibold text-xs mb-2">{g.name_hindi || g.name}</p>
               <CountdownTimer targetTime={g.result_time} label="बंद होने में" />
             </div>
@@ -72,6 +74,7 @@ const GamesPage = () => {
                 multiplier={`${game.payout_percentage}x`}
                 color={colorOptions[i % colorOptions.length]}
                 status={getStatus(game.result_time)}
+                onPlay={() => navigate(`/bet/${game.id}`)}
               />
             </motion.div>
           ))}
