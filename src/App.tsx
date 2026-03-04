@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import GamesPage from "./pages/GamesPage";
+import GameProfilePage from "./pages/GameProfilePage";
 import BettingPage from "./pages/BettingPage";
 import ResultsPage from "./pages/ResultsPage";
 import WalletPage from "./pages/WalletPage";
@@ -27,6 +28,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/games" element={<GamesPage />} />
+              <Route path="/game/:gameId" element={<GameProfilePage />} />
               <Route path="/bet/:gameId" element={<BettingPage />} />
               <Route path="/results" element={<ResultsPage />} />
               <Route path="/wallet" element={<WalletPage />} />
