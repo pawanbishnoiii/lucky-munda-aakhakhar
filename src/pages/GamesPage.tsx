@@ -74,7 +74,7 @@ const GamesPage = () => {
                 multiplier={`${game.payout_percentage}x`}
                 color={colorOptions[i % colorOptions.length]}
                 status={getStatus(game.result_time)}
-                onPlay={() => navigate(`/bet/${game.id}`)}
+                onPlay={() => navigate(`/game/${game.id}`)}
               />
             </motion.div>
           ))}

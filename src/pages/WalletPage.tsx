@@ -1,6 +1,6 @@
 import Header from "@/components/Header";
-import { motion } from "framer-motion";
-import { Plus, ArrowDownLeft, ArrowUpRight, QrCode, LogIn, CreditCard, Building2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, ArrowDownLeft, ArrowUpRight, QrCode, LogIn, CreditCard, Building2, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,7 @@ const WalletPage = () => {
   const [depositUpi, setDepositUpi] = useState("admin@upi");
   const [submitting, setSubmitting] = useState(false);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [selectedTx, setSelectedTx] = useState<any>(null);
 
   useEffect(() => {
     supabase.from("admin_settings").select("*").eq("key", "deposit_upi").maybeSingle()
@@ -38,7 +39,7 @@ const WalletPage = () => {
     const fetchData = async () => {
       const { data: w } = await supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle();
       setWallet(w);
-      const { data: txs } = await supabase.from("wallet_transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20);
+      const { data: txs } = await supabase.from("wallet_transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50);
       setTransactions(txs || []);
     };
     fetchData();
@@ -56,7 +57,7 @@ const WalletPage = () => {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl p-8 text-center border border-border/50 shadow-sm">
             <div className="w-16 h-16 gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-primary"><LogIn className="w-8 h-8 text-primary-foreground" /></div>
             <h2 className="font-display font-bold text-xl text-foreground mb-2">Login Required</h2>
-            <p className="text-muted-foreground text-sm mb-6">Wallet का उपयोग करने के लिए पहले Login करें</p>
+            <p className="text-muted-foreground text-sm mb-6">Wallet के लिए पहले Login करें</p>
             <button onClick={() => navigate("/profile")} className="gradient-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold text-sm shadow-glow-primary">Login / Sign Up →</button>
           </motion.div>
         </div>
@@ -66,19 +67,17 @@ const WalletPage = () => {
 
   const handleDeposit = async () => {
     if (!depositAmount || !utrNumber) { toast({ title: "Amount और UTR ज़रूरी है", variant: "destructive" }); return; }
+    if (!screenshotFile) { toast({ title: "Screenshot upload करना ज़रूरी है!", variant: "destructive" }); return; }
     setSubmitting(true);
-    let screenshotUrl = "";
-    if (screenshotFile) {
-      const filePath = `${user.id}/${Date.now()}_${screenshotFile.name}`;
-      const { error: uploadError } = await supabase.storage.from("payment-screenshots").upload(filePath, screenshotFile);
-      if (uploadError) { toast({ title: "Screenshot upload failed", variant: "destructive" }); setSubmitting(false); return; }
-      screenshotUrl = filePath;
-    }
-    const { error } = await supabase.from("wallet_transactions").insert({ user_id: user.id, type: "deposit", amount: parseFloat(depositAmount), status: "pending", utr_number: utrNumber, screenshot_url: screenshotUrl, payment_method: "UPI" });
+    const filePath = `${user.id}/${Date.now()}_${screenshotFile.name}`;
+    const { error: uploadError } = await supabase.storage.from("payment-screenshots").upload(filePath, screenshotFile);
+    if (uploadError) { toast({ title: "Screenshot upload failed", variant: "destructive" }); setSubmitting(false); return; }
+    
+    const { error } = await supabase.from("wallet_transactions").insert({ user_id: user.id, type: "deposit", amount: parseFloat(depositAmount), status: "pending", utr_number: utrNumber, screenshot_url: filePath, payment_method: "UPI" });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "✅ Deposit Request Submitted!" }); setDepositAmount(""); setUtrNumber(""); setScreenshotFile(null); }
     setSubmitting(false);
-    const { data: txs } = await supabase.from("wallet_transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20);
+    const { data: txs } = await supabase.from("wallet_transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50);
     setTransactions(txs || []);
   };
 
@@ -91,6 +90,11 @@ const WalletPage = () => {
       toast({ title: bankAccountNumber !== confirmAccountNumber ? "Account numbers don't match" : "सभी Bank details ज़रूरी हैं", variant: "destructive" }); return;
     }
     setSubmitting(true);
+    // Deduct wallet immediately
+    const newBalance = parseFloat(wallet.balance) - amt;
+    await supabase.from("wallets").update({ balance: newBalance }).eq("user_id", user.id);
+    setWallet({ ...wallet, balance: newBalance });
+
     const { error } = await supabase.from("wallet_transactions").insert({
       user_id: user.id, type: "withdraw", amount: amt, status: "pending", payment_method: withdrawMethod,
       upi_id: withdrawMethod === "upi" ? upiId : null,
@@ -99,14 +103,9 @@ const WalletPage = () => {
       bank_ifsc_code: withdrawMethod === "bank" ? bankIfsc : null,
     });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else {
-      toast({ title: "✅ Withdraw Request Submitted!" });
-      setWithdrawAmount("");
-      const { data: w } = await supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle();
-      setWallet(w);
-    }
+    else { toast({ title: "✅ Withdraw Request Submitted!" }); setWithdrawAmount(""); }
     setSubmitting(false);
-    const { data: txs } = await supabase.from("wallet_transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20);
+    const { data: txs } = await supabase.from("wallet_transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50);
     setTransactions(txs || []);
   };
 
@@ -120,8 +119,8 @@ const WalletPage = () => {
           <p className="text-primary-foreground/70 text-sm">कुल बैलेंस</p>
           <h2 className="font-display font-bold text-3xl text-primary-foreground mt-1">₹{wallet ? parseFloat(wallet.balance).toFixed(2) : "0.00"}</h2>
           <div className="flex gap-3 mt-4">
-            <button onClick={() => setActiveTab("deposit")} className="bg-foreground/20 text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 hover:bg-foreground/30 transition-colors"><Plus className="w-4 h-4" /> जमा करें</button>
-            <button onClick={() => setActiveTab("withdraw")} className="bg-foreground/10 text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 hover:bg-foreground/20 transition-colors"><ArrowUpRight className="w-4 h-4" /> निकालें</button>
+            <button onClick={() => setActiveTab("deposit")} className="bg-foreground/20 text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5"><Plus className="w-4 h-4" /> जमा</button>
+            <button onClick={() => setActiveTab("withdraw")} className="bg-foreground/10 text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5"><ArrowUpRight className="w-4 h-4" /> निकालें</button>
           </div>
         </motion.div>
       </div>
@@ -136,19 +135,18 @@ const WalletPage = () => {
 
           {activeTab === "deposit" ? (
             <div>
-              <p className="text-muted-foreground text-xs mb-3">यहाँ Payment भेजें:</p>
               <div className="bg-secondary rounded-xl p-3 mb-3">
-                <div className="flex items-center gap-2 mb-2"><QrCode className="w-4 h-4 text-primary" /><span className="text-foreground font-semibold text-sm">UPI: {depositUpi}</span></div>
+                <div className="flex items-center gap-2 mb-1"><QrCode className="w-4 h-4 text-primary" /><span className="text-foreground font-semibold text-sm">UPI: {depositUpi}</span></div>
                 <p className="text-muted-foreground text-xs">Payment के बाद UTR और Screenshot दें</p>
               </div>
               <div className="space-y-3">
                 <input type="number" placeholder="Amount (₹)" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
                 <input type="text" placeholder="UTR Number" value={utrNumber} onChange={(e) => setUtrNumber(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
-                <label className="w-full bg-secondary text-muted-foreground px-4 py-3 rounded-xl text-sm border-2 border-dashed border-border hover:border-primary transition-colors cursor-pointer flex items-center gap-2">
-                  📎 {screenshotFile ? screenshotFile.name : "Screenshot Upload करें"}
+                <label className={`w-full px-4 py-3 rounded-xl text-sm border-2 border-dashed cursor-pointer flex items-center gap-2 transition-colors ${screenshotFile ? "bg-game-green/10 border-game-green/30 text-game-green" : "bg-secondary text-muted-foreground border-border hover:border-primary"}`}>
+                  📎 {screenshotFile ? `✅ ${screenshotFile.name}` : "Screenshot Upload करें (ज़रूरी)"}
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => setScreenshotFile(e.target.files?.[0] || null)} />
                 </label>
-                <button onClick={handleDeposit} disabled={submitting} className="w-full gradient-primary text-primary-foreground py-3 rounded-xl font-semibold text-sm shadow-glow-primary disabled:opacity-50">{submitting ? "Submitting..." : "Deposit Request भेजें"}</button>
+                <button onClick={handleDeposit} disabled={submitting || !screenshotFile} className="w-full gradient-primary text-primary-foreground py-3 rounded-xl font-semibold text-sm shadow-glow-primary disabled:opacity-50">{submitting ? "Submitting..." : "Deposit Request भेजें"}</button>
               </div>
             </div>
           ) : (
@@ -158,18 +156,14 @@ const WalletPage = () => {
                 <button onClick={() => { setWithdrawMethod("upi"); setBankInfoSaved(false); setUpiInfoSaved(false); }} className={`flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${withdrawMethod === "upi" ? "gradient-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}><CreditCard className="w-4 h-4" /> UPI</button>
                 <button onClick={() => { setWithdrawMethod("bank"); setUpiInfoSaved(false); setBankInfoSaved(false); }} className={`flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${withdrawMethod === "bank" ? "gradient-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}><Building2 className="w-4 h-4" /> Bank</button>
               </div>
-
               {withdrawMethod === "upi" && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-3">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
                   <input type="text" placeholder="UPI ID (eg: name@upi)" value={upiId} onChange={(e) => setUpiId(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
-                  {!upiInfoSaved && upiId && (
-                    <button onClick={() => setUpiInfoSaved(true)} className="w-full bg-game-green/15 text-game-green py-2.5 rounded-xl font-semibold text-sm">✅ Save UPI Info</button>
-                  )}
+                  {!upiInfoSaved && upiId && <button onClick={() => setUpiInfoSaved(true)} className="w-full bg-game-green/15 text-game-green py-2.5 rounded-xl font-semibold text-sm">✅ Save UPI</button>}
                 </motion.div>
               )}
-
               {withdrawMethod === "bank" && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-3">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
                   <input type="text" placeholder="Account Holder Name" value={bankHolderName} onChange={(e) => setBankHolderName(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
                   <input type="text" placeholder="Account Number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
                   <input type="text" placeholder="Confirm Account Number" value={confirmAccountNumber} onChange={(e) => setConfirmAccountNumber(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
@@ -179,7 +173,6 @@ const WalletPage = () => {
                   )}
                 </motion.div>
               )}
-
               {(upiInfoSaved || bankInfoSaved) && (
                 <button onClick={handleWithdraw} disabled={submitting} className="w-full gradient-primary text-primary-foreground py-3 rounded-xl font-semibold text-sm shadow-glow-primary disabled:opacity-50">{submitting ? "Processing..." : "Withdraw Request भेजें"}</button>
               )}
@@ -188,11 +181,12 @@ const WalletPage = () => {
         </div>
       </div>
 
+      {/* Payment History */}
       <div className="px-4 mt-4">
-        <h3 className="font-display font-bold text-foreground mb-3">लेनदेन इतिहास</h3>
+        <h3 className="font-display font-bold text-foreground mb-3">💳 Payment History</h3>
         <div className="space-y-2">
           {transactions.map((tx) => (
-            <motion.div key={tx.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="bg-card rounded-xl p-3 flex items-center justify-between border border-border/50">
+            <motion.button key={tx.id} onClick={() => setSelectedTx(tx)} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full bg-card rounded-xl p-3 flex items-center justify-between border border-border/50 text-left hover:bg-secondary/30 transition-colors">
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${tx.type === "deposit" || tx.type === "win" ? "bg-game-green/10" : "bg-destructive/10"}`}>
                   {tx.type === "deposit" || tx.type === "win" ? <ArrowDownLeft className="w-4 h-4 text-game-green" /> : <ArrowUpRight className="w-4 h-4 text-destructive" />}
@@ -208,11 +202,37 @@ const WalletPage = () => {
                 </p>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${tx.status === "pending" ? "bg-accent/10 text-accent" : tx.status === "approved" || tx.status === "completed" ? "bg-game-green/10 text-game-green" : "bg-destructive/10 text-destructive"}`}>{tx.status}</span>
               </div>
-            </motion.div>
+            </motion.button>
           ))}
           {transactions.length === 0 && <p className="text-center text-muted-foreground text-sm py-6">कोई लेनदेन नहीं</p>}
         </div>
       </div>
+
+      {/* Transaction Detail Modal */}
+      <AnimatePresence>
+        {selectedTx && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-foreground/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedTx(null)}>
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} onClick={(e) => e.stopPropagation()} className="w-full max-w-sm bg-card rounded-2xl p-5 border border-border/50 shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold text-foreground">Transaction Details</h3>
+                <button onClick={() => setSelectedTx(null)} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center"><X className="w-4 h-4 text-muted-foreground" /></button>
+              </div>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between"><span className="text-muted-foreground">ID:</span><span className="font-mono text-foreground text-[10px]">{selectedTx.id.slice(0, 12).toUpperCase()}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Type:</span><span className="text-foreground capitalize font-medium">{selectedTx.type}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Amount:</span><span className="font-bold text-foreground">₹{parseFloat(selectedTx.amount).toFixed(0)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Method:</span><span className="text-foreground">{selectedTx.payment_method || "-"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Status:</span><span className={`font-bold ${selectedTx.status === "approved" || selectedTx.status === "completed" ? "text-game-green" : selectedTx.status === "pending" ? "text-accent" : "text-destructive"}`}>{selectedTx.status}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Date:</span><span className="text-foreground">{new Date(selectedTx.created_at).toLocaleString("hi-IN")}</span></div>
+                {selectedTx.utr_number && <div className="flex justify-between"><span className="text-muted-foreground">UTR:</span><span className="font-mono text-foreground">{selectedTx.utr_number}</span></div>}
+                {selectedTx.upi_id && <div className="flex justify-between"><span className="text-muted-foreground">UPI:</span><span className="text-foreground">{selectedTx.upi_id}</span></div>}
+                {selectedTx.bank_holder_name && <div className="flex justify-between"><span className="text-muted-foreground">Bank:</span><span className="text-foreground">{selectedTx.bank_holder_name}</span></div>}
+                {selectedTx.admin_note && <div className="mt-2 bg-secondary rounded-lg p-2"><span className="text-muted-foreground text-[10px]">Note: </span><span className="text-foreground text-[10px]">{selectedTx.admin_note}</span></div>}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
