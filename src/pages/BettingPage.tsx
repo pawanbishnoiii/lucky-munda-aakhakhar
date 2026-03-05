@@ -1,23 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ShoppingCart, Trash2, Printer, X, Plus, Clock } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Trash2, Printer, X, Plus, Clock, Zap, Hash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import CountdownTimer from "@/components/CountdownTimer";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface CartItem {
   number: number;
   amount: number;
 }
 
+const QUICK_AMOUNTS = [10, 20, 50, 100, 200, 500];
+
 const BettingPage = () => {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [game, setGame] = useState<any>(null);
-  const [wallet, setWallet] = useState<any>(null);
+  const queryClient = useQueryClient();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [showCart, setShowCart] = useState(false);
@@ -25,19 +27,30 @@ const BettingPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [lastBetId, setLastBetId] = useState("");
   const [bettingClosed, setBettingClosed] = useState(false);
+  const [quickAmount, setQuickAmount] = useState<number>(10);
+  const [searchNum, setSearchNum] = useState("");
   const billRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!gameId) return;
-    supabase.from("games").select("*").eq("id", gameId).maybeSingle().then(({ data }) => setGame(data));
-  }, [gameId]);
+  const { data: game } = useQuery({
+    queryKey: ["game", gameId],
+    queryFn: async () => {
+      const { data } = await supabase.from("games").select("*").eq("id", gameId!).maybeSingle();
+      return data;
+    },
+    enabled: !!gameId,
+    staleTime: 30000,
+  });
 
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => setWallet(data));
-  }, [user]);
+  const { data: wallet, refetch: refetchWallet } = useQuery({
+    queryKey: ["wallet", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("wallets").select("*").eq("user_id", user!.id).maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 10000,
+  });
 
-  // Check if betting is closed (30 min before result time)
   useEffect(() => {
     if (!game) return;
     const checkClosure = () => {
@@ -66,12 +79,12 @@ const BettingPage = () => {
 
   if (!game) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
-  // Numbers 01-100
   const numbers = Array.from({ length: 100 }, (_, i) => i + 1);
+  const filteredNumbers = searchNum ? numbers.filter(n => String(n).padStart(2, "0").includes(searchNum)) : numbers;
 
   const addToCart = (num: number) => {
     const key = `num-${num}`;
-    const amt = parseFloat(amounts[key] || "0");
+    const amt = parseFloat(amounts[key] || String(quickAmount));
     if (amt <= 0) { toast({ title: "राशि डालें", variant: "destructive" }); return; }
     const existing = cart.findIndex(c => c.number === num);
     if (existing >= 0) {
@@ -92,7 +105,7 @@ const BettingPage = () => {
   const placeBets = async () => {
     if (cart.length === 0) return;
     if (bettingClosed) { toast({ title: "बेटिंग बंद हो चुकी है!", variant: "destructive" }); return; }
-    if (!wallet || totalAmount > parseFloat(wallet.balance)) {
+    if (!wallet || totalAmount > Number(wallet.balance)) {
       toast({ title: "अपर्याप्त बैलेंस!", variant: "destructive" }); return;
     }
     setSubmitting(true);
@@ -103,9 +116,9 @@ const BettingPage = () => {
     const { error } = await supabase.from("bets").insert(betsData);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); setSubmitting(false); return; }
     
-    const newBalance = parseFloat(wallet.balance) - totalAmount;
+    const newBalance = Number(wallet.balance) - totalAmount;
     await supabase.from("wallets").update({ balance: newBalance }).eq("user_id", user.id);
-    setWallet({ ...wallet, balance: newBalance });
+    queryClient.invalidateQueries({ queryKey: ["wallet"] });
 
     const betId = `BK${Date.now().toString(36).toUpperCase()}`;
     setLastBetId(betId);
@@ -123,6 +136,8 @@ const BettingPage = () => {
     printWindow.print();
   };
 
+  const balance = wallet ? Number(wallet.balance) : 0;
+
   return (
     <div className="min-h-screen bg-background pb-4">
       {/* Header */}
@@ -131,7 +146,7 @@ const BettingPage = () => {
           <button onClick={() => navigate(`/game/${gameId}`)} className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground"><ArrowLeft className="w-4 h-4" /></button>
           <div>
             <h1 className="font-display font-bold text-foreground text-sm">{game.name_hindi || game.name}</h1>
-            <p className="text-muted-foreground text-xs">₹{wallet ? parseFloat(wallet.balance).toFixed(0) : "0"} · Win {game.payout_percentage}x</p>
+            <p className="text-muted-foreground text-xs">₹{balance.toFixed(0)} · Win {game.payout_percentage}x</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -152,37 +167,62 @@ const BettingPage = () => {
         </div>
       )}
 
-      {/* Number Grid - 01 to 100 */}
+      {/* Quick Amount Selector */}
+      <div className="px-4 pt-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <Hash className="w-4 h-4 text-muted-foreground" />
+          <input 
+            type="text" placeholder="नंबर खोजें..." value={searchNum} 
+            onChange={(e) => setSearchNum(e.target.value)}
+            className="flex-1 bg-card text-foreground px-3 py-2 rounded-xl text-sm outline-none border border-border/50 placeholder:text-muted-foreground" 
+          />
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+          <Zap className="w-4 h-4 text-primary flex-shrink-0" />
+          {QUICK_AMOUNTS.map(amt => (
+            <button key={amt} onClick={() => setQuickAmount(amt)} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${quickAmount === amt ? "gradient-primary text-primary-foreground shadow-glow-primary" : "bg-secondary text-secondary-foreground"}`}>
+              ₹{amt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Number Grid */}
       <div className="px-3 pt-3">
         <div className="flex items-center justify-between mb-2 px-1">
           <h3 className="font-display font-bold text-foreground text-sm">🔢 नंबर चुनें (01-100)</h3>
-          <span className="text-muted-foreground text-xs">Win: {game.payout_percentage}x</span>
+          <span className="text-muted-foreground text-xs">Quick: ₹{quickAmount}</span>
         </div>
         <div className="grid grid-cols-5 gap-1.5">
-          {numbers.map((num) => {
+          {filteredNumbers.map((num) => {
             const key = `num-${num}`;
             const displayNum = String(num).padStart(2, "0");
             const inCart = cart.some(c => c.number === num);
+            const cartAmt = cart.find(c => c.number === num)?.amount;
             return (
-              <div key={key} className={`bg-card rounded-xl border transition-all p-1.5 ${inCart ? "border-primary shadow-glow-primary" : "border-border/50"}`}>
+              <motion.div 
+                key={key} 
+                whileTap={{ scale: 0.95 }}
+                className={`bg-card rounded-xl border transition-all p-1.5 ${inCart ? "border-primary shadow-glow-primary ring-1 ring-primary/20" : "border-border/50"}`}
+              >
                 <div className="text-center mb-1">
                   <span className="font-mono font-bold text-base text-foreground">{displayNum}</span>
-                  {amounts[key] && <p className="text-[9px] text-game-green">Win ₹{potentialWin(parseFloat(amounts[key]))}</p>}
+                  {inCart && <p className="text-[9px] text-game-green font-bold">₹{cartAmt}</p>}
                 </div>
                 <div className="flex gap-0.5">
                   <input
                     type="number"
-                    placeholder="₹"
+                    placeholder={`₹${quickAmount}`}
                     value={amounts[key] || ""}
                     onChange={(e) => setAmounts({ ...amounts, [key]: e.target.value })}
                     disabled={bettingClosed}
-                    className="flex-1 bg-secondary text-foreground rounded-lg text-center outline-none placeholder:text-muted-foreground px-1 py-1 text-[11px] min-w-0"
+                    className="flex-1 bg-secondary text-foreground rounded-lg text-center outline-none placeholder:text-muted-foreground/60 px-1 py-1 text-[11px] min-w-0"
                   />
                   <button onClick={() => addToCart(num)} disabled={bettingClosed} className="gradient-primary text-primary-foreground rounded-lg font-bold flex items-center justify-center px-1.5 py-1 text-xs disabled:opacity-40">
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -231,7 +271,7 @@ const BettingPage = () => {
 
                   <div className="bg-secondary rounded-xl p-4 mb-4">
                     <div className="flex justify-between text-sm text-muted-foreground mb-1"><span>कुल बेट्स</span><span>{cart.length}</span></div>
-                    <div className="flex justify-between text-sm text-muted-foreground mb-1"><span>बैलेंस</span><span>₹{wallet ? parseFloat(wallet.balance).toFixed(0) : "0"}</span></div>
+                    <div className="flex justify-between text-sm text-muted-foreground mb-1"><span>बैलेंस</span><span>₹{balance.toFixed(0)}</span></div>
                     <div className="flex justify-between text-sm text-game-green mb-2"><span>संभावित जीत</span><span>₹{potentialWin(totalAmount)}</span></div>
                     <div className="border-t border-border/50 pt-2 flex justify-between font-bold text-foreground"><span>कुल राशि</span><span>₹{totalAmount}</span></div>
                   </div>
@@ -259,7 +299,6 @@ const BettingPage = () => {
                 </div>
                 <div className="space-y-1 text-xs mb-3">
                   <div className="flex justify-between"><span className="text-muted-foreground">Bet ID:</span><span className="font-mono font-bold text-foreground">{lastBetId}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">User:</span><span className="text-foreground">{user.email}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Game:</span><span className="text-foreground">{game.name_hindi || game.name}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Time:</span><span className="text-foreground">{new Date().toLocaleString("hi-IN")}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Payout:</span><span className="text-foreground">{game.payout_percentage}x</span></div>
@@ -281,7 +320,6 @@ const BettingPage = () => {
                   <div className="flex justify-between text-game-green font-bold"><span>संभावित जीत</span><span>₹{potentialWin(totalAmount)}</span></div>
                 </div>
               </div>
-
               <div className="flex gap-2 mt-4">
                 <button onClick={printBill} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"><Printer className="w-4 h-4" /> प्रिंट</button>
                 <button onClick={() => { setShowBill(false); setCart([]); setShowCart(false); navigate(`/game/${gameId}`); }} className="flex-1 gradient-primary text-primary-foreground py-3 rounded-xl font-semibold text-sm">ठीक है ✅</button>

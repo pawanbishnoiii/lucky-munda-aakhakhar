@@ -18,35 +18,27 @@ const BottomNav = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50">
-      <div className="bg-card/95 backdrop-blur-xl border-t border-border/60 px-1 pt-1 pb-[env(safe-area-inset-bottom,8px)] max-w-lg mx-auto shadow-[0_-4px_20px_hsl(var(--foreground)/0.05)]">
-        <nav className="flex justify-around items-center">
+      <div className="bg-card/98 backdrop-blur-2xl border-t border-border/40 max-w-lg mx-auto shadow-[0_-8px_30px_hsl(var(--foreground)/0.08)]">
+        <nav className="flex justify-around items-center px-2 pt-2 pb-[max(env(safe-area-inset-bottom,8px),8px)]">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className="relative flex flex-col items-center gap-0.5 px-4 py-2 rounded-2xl transition-all"
+                className="relative flex flex-col items-center gap-0.5 py-1 px-3 rounded-2xl transition-all group"
               >
                 {isActive && (
                   <motion.div
-                    layoutId="bottomnav"
-                    className="absolute inset-0 gradient-primary rounded-2xl opacity-10"
-                    transition={{ type: "spring", duration: 0.5 }}
+                    layoutId="bottomnav-indicator"
+                    className="absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 gradient-primary rounded-full"
+                    transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
                   />
                 )}
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isActive ? "gradient-primary shadow-glow-primary" : ""}`}>
-                  <item.icon
-                    className={`w-5 h-5 transition-colors ${
-                      isActive ? "text-primary-foreground" : "text-muted-foreground"
-                    }`}
-                  />
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isActive ? "gradient-primary shadow-glow-primary scale-105" : "group-hover:bg-secondary"}`}>
+                  <item.icon className={`w-5 h-5 transition-colors ${isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"}`} />
                 </div>
-                <span
-                  className={`text-[10px] font-semibold transition-colors ${
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
+                <span className={`text-[10px] font-semibold transition-colors ${isActive ? "text-primary" : "text-muted-foreground"}`}>
                   {item.label}
                 </span>
               </button>
