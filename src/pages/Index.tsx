@@ -15,7 +15,8 @@ const Index = () => {
   const navigate = useNavigate();
   const { data: games = [], isLoading } = useGames();
   const { data: settings = {} } = useSettings();
-  const tickerText = settings.live_ticker || "🔥 BK Matka — खेलो और जीतो!";
+  const tickerText = settings.live_ticker || "🔥 खेलो और जीतो — सबसे भरोसेमंद Platform!";
+  const appName = settings.app_name || "Matka Pro";
 
   const liveCount = games.filter(g => getStatus(g.result_time) === "live").length;
 
@@ -32,9 +33,9 @@ const Index = () => {
           <div className="absolute -left-10 -bottom-10 w-32 h-32 rounded-full bg-accent/5 blur-2xl" />
           <div className="relative z-10">
             <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-              <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold mb-3"><Sparkles className="w-3 h-3" /> BK Matka में आपका स्वागत है</span>
+              <span className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold mb-3"><Sparkles className="w-3 h-3" /> {appName} में स्वागत है</span>
               <h1 className="font-display text-2xl font-bold text-foreground mb-1">समझदारी से खेलो, <span className="text-gradient-gold">बड़ा जीतो</span></h1>
-              <p className="text-muted-foreground text-sm mb-4">India का सबसे भरोसेमंद Matka platform</p>
+              <p className="text-muted-foreground text-sm mb-4">India का सबसे भरोसेमंद Platform</p>
               <div className="flex gap-2">
                 <button onClick={() => navigate("/games")} className="gradient-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-semibold shadow-glow-primary hover:opacity-90 transition-opacity flex items-center gap-1.5">अभी खेलें <ArrowRight className="w-4 h-4" /></button>
                 <button onClick={() => navigate("/results")} className="bg-secondary text-secondary-foreground px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-secondary/80 transition-colors">नतीजे देखें</button>
@@ -47,12 +48,11 @@ const Index = () => {
       <WalletStrip />
       <LiveTicker text={tickerText} />
 
-      {/* Stats */}
       <div className="px-4 py-2 grid grid-cols-3 gap-2">
         {[
-          { icon: TrendingUp, label: "Payout", value: "₹2.5Cr+", bg: "bg-game-green/10", text: "text-game-green" },
+          { icon: TrendingUp, label: "Payout", value: "Fast", bg: "bg-game-green/10", text: "text-game-green" },
           { icon: Shield, label: "Verified", value: "100% Safe", bg: "bg-game-blue/10", text: "text-game-blue" },
-          { icon: Users, label: "Players", value: "50K+", bg: "bg-game-purple/10", text: "text-game-purple" },
+          { icon: Users, label: "Players", value: "Active", bg: "bg-game-purple/10", text: "text-game-purple" },
         ].map((s) => (
           <div key={s.label} className={`${s.bg} rounded-xl p-3 flex flex-col items-center gap-1 border border-border/30`}>
             <s.icon className={`w-5 h-5 ${s.text}`} />
@@ -62,7 +62,6 @@ const Index = () => {
         ))}
       </div>
 
-      {/* Games */}
       <div className="px-4 py-3">
         <div className="flex justify-between items-center mb-3">
           <h2 className="font-display font-bold text-lg text-foreground">🎮 लाइव गेम्स</h2>
