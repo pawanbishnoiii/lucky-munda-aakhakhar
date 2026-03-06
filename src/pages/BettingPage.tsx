@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ShoppingCart, Trash2, Printer, X, Plus, Clock, Zap, Hash } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Trash2, Printer, X, Plus, Clock, Zap, Hash, Star, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -41,7 +41,7 @@ const BettingPage = () => {
     staleTime: 30000,
   });
 
-  const { data: wallet, refetch: refetchWallet } = useQuery({
+  const { data: wallet } = useQuery({
     queryKey: ["wallet", user?.id],
     queryFn: async () => {
       const { data } = await supabase.from("wallets").select("*").eq("user_id", user!.id).maybeSingle();
@@ -95,7 +95,7 @@ const BettingPage = () => {
       setCart([...cart, { number: num, amount: amt }]);
     }
     setAmounts({ ...amounts, [key]: "" });
-    toast({ title: `#${String(num).padStart(2, "0")} — ₹${amt} कार्ट में जोड़ा` });
+    toast({ title: `#${String(num).padStart(2, "0")} — ₹${amt} added` });
   };
 
   const removeFromCart = (index: number) => setCart(cart.filter((_, i) => i !== index));
@@ -104,7 +104,7 @@ const BettingPage = () => {
 
   const placeBets = async () => {
     if (cart.length === 0) return;
-    if (bettingClosed) { toast({ title: "बेटिंग बंद हो चुकी है!", variant: "destructive" }); return; }
+    if (bettingClosed) { toast({ title: "बेटिंग बंद!", variant: "destructive" }); return; }
     if (!wallet || totalAmount > Number(wallet.balance)) {
       toast({ title: "अपर्याप्त बैलेंस!", variant: "destructive" }); return;
     }
@@ -120,9 +120,10 @@ const BettingPage = () => {
     await supabase.from("wallets").update({ balance: newBalance }).eq("user_id", user.id);
     queryClient.invalidateQueries({ queryKey: ["wallet"] });
 
-    const betId = `BK${Date.now().toString(36).toUpperCase()}`;
+    const betId = `BET-${Date.now().toString(36).toUpperCase()}`;
     setLastBetId(betId);
     setShowBill(true);
+    setShowCart(false);
     setSubmitting(false);
     toast({ title: "✅ बेट सफलतापूर्वक लगाई गई!" });
   };
@@ -131,7 +132,7 @@ const BettingPage = () => {
     if (!billRef.current) return;
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
-    printWindow.document.write(`<html><head><title>BK Matka - Betting Bill</title><style>body{font-family:monospace;padding:20px;max-width:400px;margin:auto}h2{text-align:center}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:6px;text-align:left;font-size:12px}.total{font-weight:bold;font-size:14px}</style></head><body>${billRef.current.innerHTML}</body></html>`);
+    printWindow.document.write(`<html><head><title>Betting Bill</title><style>body{font-family:monospace;padding:20px;max-width:400px;margin:auto}h2{text-align:center}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:6px;text-align:left;font-size:12px}.total{font-weight:bold;font-size:14px}</style></head><body>${billRef.current.innerHTML}</body></html>`);
     printWindow.document.close();
     printWindow.print();
   };
@@ -139,21 +140,31 @@ const BettingPage = () => {
   const balance = wallet ? Number(wallet.balance) : 0;
 
   return (
-    <div className="min-h-screen bg-background pb-4">
+    <div className="min-h-screen bg-background bg-grid pb-4">
       {/* Header */}
-      <header className="bg-card/95 backdrop-blur-xl sticky top-0 z-40 px-4 py-3 flex items-center justify-between border-b border-border/50">
+      <header className="bg-card/95 backdrop-blur-xl sticky top-0 z-40 px-4 py-3 flex items-center justify-between border-b border-border/50 shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(`/game/${gameId}`)} className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground"><ArrowLeft className="w-4 h-4" /></button>
+          <button onClick={() => navigate(`/game/${gameId}`)} className="w-10 h-10 rounded-xl bg-secondary hover:bg-secondary/80 flex items-center justify-center text-muted-foreground transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div>
-            <h1 className="font-display font-bold text-foreground text-sm">{game.name_hindi || game.name}</h1>
-            <p className="text-muted-foreground text-xs">₹{balance.toFixed(0)} · Win {game.payout_percentage}x</p>
+            <h1 className="font-display font-bold text-foreground text-base">{game.name_hindi || game.name}</h1>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">₹{balance.toFixed(0)}</span>
+              <span className="w-1 h-1 rounded-full bg-border" />
+              <span className="text-primary font-semibold">Win {game.payout_percentage}x</span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <CountdownTimer targetTime={game.result_time} label="" />
-          <button onClick={() => setShowCart(!showCart)} className="relative w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow-primary">
+          <button onClick={() => setShowCart(!showCart)} className="relative w-11 h-11 rounded-xl gradient-primary flex items-center justify-center shadow-glow-primary hover:opacity-90 transition-opacity">
             <ShoppingCart className="w-5 h-5 text-primary-foreground" />
-            {cart.length > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive rounded-full text-[10px] text-destructive-foreground font-bold flex items-center justify-center">{cart.length}</span>}
+            {cart.length > 0 && (
+              <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-destructive rounded-full text-[11px] text-destructive-foreground font-bold flex items-center justify-center shadow-md">
+                {cart.length}
+              </motion.span>
+            )}
           </button>
         </div>
       </header>
@@ -161,39 +172,57 @@ const BettingPage = () => {
       {/* Betting Closed Banner */}
       {bettingClosed && (
         <div className="px-4 pt-3">
-          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 text-center">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 text-center">
             <p className="text-destructive font-bold text-sm">🚫 बेटिंग बंद — नतीजा जल्द आएगा</p>
-          </div>
+          </motion.div>
         </div>
       )}
 
-      {/* Quick Amount Selector */}
-      <div className="px-4 pt-3 space-y-2">
-        <div className="flex items-center gap-2">
+      {/* Quick Amount & Search */}
+      <div className="px-4 pt-3 space-y-3">
+        {/* Search */}
+        <div className="flex items-center gap-2 bg-card rounded-xl px-3 py-2.5 border border-border/50 shadow-sm">
           <Hash className="w-4 h-4 text-muted-foreground" />
           <input 
-            type="text" placeholder="नंबर खोजें..." value={searchNum} 
+            type="text" placeholder="नंबर खोजें (01-100)..." value={searchNum} 
             onChange={(e) => setSearchNum(e.target.value)}
-            className="flex-1 bg-card text-foreground px-3 py-2 rounded-xl text-sm outline-none border border-border/50 placeholder:text-muted-foreground" 
+            className="flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground" 
           />
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-          <Zap className="w-4 h-4 text-primary flex-shrink-0" />
-          {QUICK_AMOUNTS.map(amt => (
-            <button key={amt} onClick={() => setQuickAmount(amt)} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${quickAmount === amt ? "gradient-primary text-primary-foreground shadow-glow-primary" : "bg-secondary text-secondary-foreground"}`}>
-              ₹{amt}
-            </button>
-          ))}
+
+        {/* Quick Amounts */}
+        <div className="bg-card rounded-xl p-3 border border-border/50 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-4 h-4 text-primary" />
+            <span className="text-foreground font-semibold text-xs">Quick Amount</span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {QUICK_AMOUNTS.map(amt => (
+              <button 
+                key={amt} 
+                onClick={() => setQuickAmount(amt)} 
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                  quickAmount === amt 
+                    ? "gradient-primary text-primary-foreground shadow-glow-primary scale-105" 
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                ₹{amt}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Number Grid */}
       <div className="px-3 pt-3">
-        <div className="flex items-center justify-between mb-2 px-1">
-          <h3 className="font-display font-bold text-foreground text-sm">🔢 नंबर चुनें (01-100)</h3>
-          <span className="text-muted-foreground text-xs">Quick: ₹{quickAmount}</span>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h3 className="font-display font-bold text-foreground text-sm flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" /> नंबर चुनें
+          </h3>
+          <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-semibold">₹{quickAmount}</span>
         </div>
-        <div className="grid grid-cols-5 gap-1.5">
+        <div className="grid grid-cols-5 gap-2">
           {filteredNumbers.map((num) => {
             const key = `num-${num}`;
             const displayNum = String(num).padStart(2, "0");
@@ -202,24 +231,38 @@ const BettingPage = () => {
             return (
               <motion.div 
                 key={key} 
-                whileTap={{ scale: 0.95 }}
-                className={`bg-card rounded-xl border transition-all p-1.5 ${inCart ? "border-primary shadow-glow-primary ring-1 ring-primary/20" : "border-border/50"}`}
+                whileTap={{ scale: 0.92 }}
+                className={`bg-card rounded-xl border-2 transition-all overflow-hidden ${
+                  inCart 
+                    ? "border-primary shadow-glow-primary" 
+                    : "border-border/40 hover:border-primary/30"
+                }`}
               >
-                <div className="text-center mb-1">
-                  <span className="font-mono font-bold text-base text-foreground">{displayNum}</span>
-                  {inCart && <p className="text-[9px] text-game-green font-bold">₹{cartAmt}</p>}
+                {/* Number display */}
+                <div className={`text-center py-2 ${inCart ? "bg-primary/5" : ""}`}>
+                  <span className="font-mono font-bold text-lg text-foreground">{displayNum}</span>
+                  {inCart && (
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] text-primary font-bold flex items-center justify-center gap-0.5">
+                      <Star className="w-2.5 h-2.5" /> ₹{cartAmt}
+                    </motion.p>
+                  )}
                 </div>
-                <div className="flex gap-0.5">
+                {/* Input + Add */}
+                <div className="flex gap-0.5 p-1 pt-0">
                   <input
                     type="number"
                     placeholder={`₹${quickAmount}`}
                     value={amounts[key] || ""}
                     onChange={(e) => setAmounts({ ...amounts, [key]: e.target.value })}
                     disabled={bettingClosed}
-                    className="flex-1 bg-secondary text-foreground rounded-lg text-center outline-none placeholder:text-muted-foreground/60 px-1 py-1 text-[11px] min-w-0"
+                    className="flex-1 bg-secondary text-foreground rounded-lg text-center outline-none placeholder:text-muted-foreground/50 px-1 py-1.5 text-[11px] min-w-0 focus:ring-1 focus:ring-primary/30"
                   />
-                  <button onClick={() => addToCart(num)} disabled={bettingClosed} className="gradient-primary text-primary-foreground rounded-lg font-bold flex items-center justify-center px-1.5 py-1 text-xs disabled:opacity-40">
-                    <Plus className="w-3 h-3" />
+                  <button 
+                    onClick={() => addToCart(num)} 
+                    disabled={bettingClosed} 
+                    className="gradient-primary text-primary-foreground rounded-lg font-bold flex items-center justify-center px-2 py-1.5 text-xs disabled:opacity-40 hover:opacity-90 transition-opacity"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </motion.div>
@@ -232,9 +275,13 @@ const BettingPage = () => {
       {cart.length > 0 && !showCart && !bettingClosed && (
         <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="fixed bottom-0 left-0 right-0 z-50">
           <div className="max-w-lg mx-auto px-4 pb-4">
-            <button onClick={() => setShowCart(true)} className="w-full gradient-primary text-primary-foreground py-4 rounded-2xl font-bold text-sm shadow-glow-primary flex items-center justify-center gap-3">
+            <button onClick={() => setShowCart(true)} className="w-full gradient-primary text-primary-foreground py-4 rounded-2xl font-bold shadow-glow-primary flex items-center justify-center gap-3 hover:opacity-90 transition-opacity">
               <ShoppingCart className="w-5 h-5" />
-              कार्ट ({cart.length}) — ₹{totalAmount} · Win ₹{potentialWin(totalAmount)}
+              <span className="text-sm">कार्ट ({cart.length})</span>
+              <span className="w-px h-5 bg-primary-foreground/30" />
+              <span className="text-sm">₹{totalAmount}</span>
+              <span className="w-px h-5 bg-primary-foreground/30" />
+              <span className="text-xs opacity-80">Win ₹{potentialWin(totalAmount)}</span>
             </button>
           </div>
         </motion.div>
@@ -247,7 +294,7 @@ const BettingPage = () => {
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="w-full max-w-lg mx-auto bg-card rounded-t-3xl p-5 max-h-[80vh] overflow-y-auto border-t border-border/50">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-display font-bold text-lg text-foreground">🛒 आपका कार्ट</h3>
-                <button onClick={() => setShowCart(false)} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"><X className="w-4 h-4 text-muted-foreground" /></button>
+                <button onClick={() => setShowCart(false)} className="w-9 h-9 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors"><X className="w-4 h-4 text-muted-foreground" /></button>
               </div>
 
               {cart.length === 0 ? (
@@ -256,28 +303,35 @@ const BettingPage = () => {
                 <>
                   <div className="space-y-2 mb-4">
                     {cart.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between bg-secondary rounded-xl px-4 py-3">
+                      <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center justify-between bg-secondary rounded-xl px-4 py-3">
                         <div>
                           <p className="font-mono font-bold text-foreground text-lg">#{String(item.number).padStart(2, "0")}</p>
-                          <p className="text-game-green text-xs">Win: ₹{potentialWin(item.amount)}</p>
+                          <p className="text-primary text-xs font-medium">Win: ₹{potentialWin(item.amount)}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="font-bold text-foreground">₹{item.amount}</span>
-                          <button onClick={() => removeFromCart(i)} className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center"><Trash2 className="w-4 h-4 text-destructive" /></button>
+                          <span className="font-bold text-foreground text-lg">₹{item.amount}</span>
+                          <button onClick={() => removeFromCart(i)} className="w-9 h-9 rounded-xl bg-destructive/10 hover:bg-destructive/20 flex items-center justify-center transition-colors">
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </button>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
 
-                  <div className="bg-secondary rounded-xl p-4 mb-4">
-                    <div className="flex justify-between text-sm text-muted-foreground mb-1"><span>कुल बेट्स</span><span>{cart.length}</span></div>
-                    <div className="flex justify-between text-sm text-muted-foreground mb-1"><span>बैलेंस</span><span>₹{balance.toFixed(0)}</span></div>
-                    <div className="flex justify-between text-sm text-game-green mb-2"><span>संभावित जीत</span><span>₹{potentialWin(totalAmount)}</span></div>
-                    <div className="border-t border-border/50 pt-2 flex justify-between font-bold text-foreground"><span>कुल राशि</span><span>₹{totalAmount}</span></div>
+                  <div className="bg-secondary rounded-xl p-4 mb-4 space-y-2">
+                    <div className="flex justify-between text-sm text-muted-foreground"><span>कुल बेट्स</span><span className="text-foreground font-medium">{cart.length}</span></div>
+                    <div className="flex justify-between text-sm text-muted-foreground"><span>बैलेंस</span><span className="text-foreground font-medium">₹{balance.toFixed(0)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-primary">संभावित जीत</span><span className="text-primary font-bold">₹{potentialWin(totalAmount)}</span></div>
+                    <div className="border-t border-border/50 pt-2 flex justify-between font-bold text-foreground text-base"><span>कुल राशि</span><span>₹{totalAmount}</span></div>
                   </div>
 
-                  <button onClick={placeBets} disabled={submitting || bettingClosed} className="w-full gradient-primary text-primary-foreground py-4 rounded-2xl font-bold text-sm shadow-glow-primary disabled:opacity-50">
-                    {submitting ? "Processing..." : `बेट लगाएं — ₹${totalAmount}`}
+                  <button onClick={placeBets} disabled={submitting || bettingClosed} className="w-full gradient-primary text-primary-foreground py-4 rounded-2xl font-bold text-base shadow-glow-primary disabled:opacity-50 hover:opacity-90 transition-opacity">
+                    {submitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                        Processing...
+                      </span>
+                    ) : `बेट लगाएं — ₹${totalAmount}`}
                   </button>
                 </>
               )}
@@ -293,8 +347,8 @@ const BettingPage = () => {
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full max-w-sm bg-card rounded-2xl p-5 border border-border/50 shadow-lg">
               <div ref={billRef}>
                 <div className="text-center mb-4">
-                  <h2 className="font-display font-bold text-xl text-foreground">BK Matka</h2>
-                  <p className="text-muted-foreground text-xs">Betting Receipt</p>
+                  <h2 className="font-display font-bold text-xl text-foreground">Betting Receipt</h2>
+                  <p className="text-muted-foreground text-xs">सफल बेट</p>
                   <div className="border-t border-dashed border-border my-2" />
                 </div>
                 <div className="space-y-1 text-xs mb-3">
@@ -310,19 +364,19 @@ const BettingPage = () => {
                       <tr key={i} className="border-b border-border/30">
                         <td className="py-1 font-mono font-bold text-foreground">#{String(item.number).padStart(2, "0")}</td>
                         <td className="text-right text-foreground">₹{item.amount}</td>
-                        <td className="text-right text-game-green">₹{potentialWin(item.amount)}</td>
+                        <td className="text-right text-primary font-bold">₹{potentialWin(item.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 <div className="border-t border-dashed border-border pt-2 space-y-1 text-xs">
                   <div className="flex justify-between text-foreground"><span>कुल राशि</span><span>₹{totalAmount}</span></div>
-                  <div className="flex justify-between text-game-green font-bold"><span>संभावित जीत</span><span>₹{potentialWin(totalAmount)}</span></div>
+                  <div className="flex justify-between text-primary font-bold"><span>संभावित जीत</span><span>₹{potentialWin(totalAmount)}</span></div>
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
-                <button onClick={printBill} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"><Printer className="w-4 h-4" /> प्रिंट</button>
-                <button onClick={() => { setShowBill(false); setCart([]); setShowCart(false); navigate(`/game/${gameId}`); }} className="flex-1 gradient-primary text-primary-foreground py-3 rounded-xl font-semibold text-sm">ठीक है ✅</button>
+                <button onClick={printBill} className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors"><Printer className="w-4 h-4" /> प्रिंट</button>
+                <button onClick={() => { setShowBill(false); setCart([]); setShowCart(false); navigate(`/game/${gameId}`); }} className="flex-1 gradient-primary text-primary-foreground py-3 rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity">ठीक है ✅</button>
               </div>
             </motion.div>
           </motion.div>

@@ -1,6 +1,6 @@
 import Header from "@/components/Header";
 import { motion } from "framer-motion";
-import { User, Mail, Lock, Eye, EyeOff, ChevronRight, Shield, History, HelpCircle, LogOut, Send, Ticket, Settings, Edit2, Phone, Save } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, ChevronRight, Shield, History, HelpCircle, LogOut, Send, Settings, Edit2, Phone, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
@@ -67,6 +67,11 @@ const ProfilePage = () => {
     if (error) toast({ title: "Google Login Failed", description: String(error), variant: "destructive" });
   };
 
+  const handleApple = async () => {
+    const { error } = await lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin });
+    if (error) toast({ title: "Apple Login Failed", description: String(error), variant: "destructive" });
+  };
+
   const handleTicketSubmit = async () => {
     if (!ticketSubject || !ticketMessage) return;
     const { error } = await supabase.from("support_tickets").insert({ user_id: user!.id, subject: ticketSubject, message: ticketMessage });
@@ -115,12 +120,18 @@ const ProfilePage = () => {
               <button onClick={handleAuth} disabled={submitting} className="w-full gradient-primary text-primary-foreground py-3 rounded-xl font-semibold text-sm shadow-glow-primary disabled:opacity-50">{submitting ? "Processing..." : isLogin ? "Login" : "Sign Up"}</button>
               <div className="relative py-3">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-                <div className="relative flex justify-center"><span className="bg-card px-3 text-muted-foreground text-xs">or</span></div>
+                <div className="relative flex justify-center"><span className="bg-card px-3 text-muted-foreground text-xs">or continue with</span></div>
               </div>
-              <button onClick={handleGoogle} className="w-full bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-secondary/80 transition-colors">
-                <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                Google से Login
-              </button>
+              <div className="flex gap-2">
+                <button onClick={handleGoogle} className="flex-1 bg-secondary text-secondary-foreground py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-secondary/80 transition-colors">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                  Google
+                </button>
+                <button onClick={handleApple} className="flex-1 bg-foreground text-background py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+                  Apple
+                </button>
+              </div>
             </div>
             <p className="text-muted-foreground text-xs mt-4">{isLogin ? "Account नहीं?" : "पहले से Account?"}{" "}<button onClick={() => setIsLogin(!isLogin)} className="text-primary font-semibold">{isLogin ? "Sign Up" : "Login"}</button></p>
           </motion.div>
@@ -179,6 +190,7 @@ const ProfilePage = () => {
                 <div>
                   <p className="text-foreground text-xs font-medium">{(b as any).games?.name_hindi || (b as any).games?.name}</p>
                   <p className="text-muted-foreground text-[10px]">#{String(b.number).padStart(2, "0")} · {new Date(b.created_at).toLocaleDateString("hi-IN")}</p>
+                  <p className="text-muted-foreground text-[9px]">Bet: {b.id.slice(0, 8).toUpperCase()}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono font-bold text-sm text-foreground">₹{parseFloat(b.amount).toFixed(0)}</p>
@@ -198,7 +210,7 @@ const ProfilePage = () => {
                 <div className="border-t border-dashed border-border my-2" />
               </div>
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between"><span className="text-muted-foreground">Transaction ID:</span><span className="font-mono font-bold text-foreground text-[10px]">{selectedBet.id.slice(0, 8).toUpperCase()}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Bet ID:</span><span className="font-mono font-bold text-foreground">{selectedBet.id.slice(0, 12).toUpperCase()}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">User:</span><span className="text-foreground">{user.email}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Game:</span><span className="text-foreground">{(selectedBet as any).games?.name_hindi || (selectedBet as any).games?.name}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Number:</span><span className="font-mono font-bold text-foreground">#{String(selectedBet.number).padStart(2, "0")}</span></div>
@@ -208,7 +220,6 @@ const ProfilePage = () => {
                 {selectedBet.status === "won" && selectedBet.payout && (
                   <>
                     <div className="border-t border-dashed border-border my-2" />
-                    <div className="flex justify-between"><span className="text-muted-foreground">Platform Fee:</span><span className="text-destructive">-₹{((selectedBet as any).games?.commission_percentage ? (parseFloat(selectedBet.amount) * (selectedBet as any).games.payout_percentage * (selectedBet as any).games.commission_percentage / 10000).toFixed(0) : "0")}</span></div>
                     <div className="flex justify-between bg-game-green/10 rounded-lg px-2 py-1.5"><span className="text-game-green font-bold">Net Winning:</span><span className="text-game-green font-bold">₹{parseFloat(selectedBet.payout).toFixed(0)}</span></div>
                   </>
                 )}
@@ -230,29 +241,26 @@ const ProfilePage = () => {
         {showHelp && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl p-4 space-y-3 border border-border/50">
             {telegramLink && (
-              <a href={telegramLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-secondary rounded-xl p-3 hover:bg-secondary/80 transition-colors">
-                <Send className="w-4 h-4 text-game-blue" /><div><p className="text-foreground text-sm font-medium">Telegram</p><p className="text-muted-foreground text-xs">तुरंत सहायता</p></div>
-              </a>
+              <a href={telegramLink} target="_blank" rel="noreferrer" className="w-full bg-game-blue/10 text-game-blue py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"><Send className="w-4 h-4" /> Telegram पर संपर्क करें</a>
             )}
-            <button onClick={() => setShowTicket(!showTicket)} className="flex items-center gap-3 bg-secondary rounded-xl p-3 w-full hover:bg-secondary/80 transition-colors">
-              <Ticket className="w-4 h-4 text-accent" /><div className="text-left"><p className="text-foreground text-sm font-medium">Ticket भेजें</p></div>
-            </button>
+            <button onClick={() => setShowTicket(!showTicket)} className="w-full bg-secondary text-secondary-foreground py-3 rounded-xl text-sm font-semibold">🎫 Support Ticket भेजें</button>
             {showTicket && (
-              <div className="space-y-2 pt-2">
-                <input type="text" placeholder="विषय" value={ticketSubject} onChange={(e) => setTicketSubject(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
-                <textarea placeholder="समस्या बताएं..." value={ticketMessage} onChange={(e) => setTicketMessage(e.target.value)} rows={3} className="w-full bg-secondary text-foreground px-4 py-3 rounded-xl text-sm outline-none placeholder:text-muted-foreground resize-none" />
+              <div className="space-y-2">
+                <input placeholder="Subject" value={ticketSubject} onChange={(e) => setTicketSubject(e.target.value)} className="w-full bg-secondary text-foreground px-4 py-2.5 rounded-xl text-sm outline-none placeholder:text-muted-foreground" />
+                <textarea placeholder="Message" value={ticketMessage} onChange={(e) => setTicketMessage(e.target.value)} rows={3} className="w-full bg-secondary text-foreground px-4 py-2.5 rounded-xl text-sm outline-none placeholder:text-muted-foreground resize-none" />
                 <button onClick={handleTicketSubmit} className="w-full gradient-primary text-primary-foreground py-2.5 rounded-xl font-semibold text-sm">Submit Ticket</button>
               </div>
             )}
             {tickets.length > 0 && (
-              <div className="space-y-2 pt-2">
-                {tickets.slice(0, 5).map((t) => (
-                  <div key={t.id} className="bg-secondary rounded-xl p-3">
+              <div className="space-y-1.5">
+                <p className="text-foreground font-bold text-xs">Your Tickets</p>
+                {tickets.map(t => (
+                  <div key={t.id} className="bg-secondary rounded-lg p-2.5">
                     <div className="flex justify-between items-start">
-                      <p className="text-foreground text-sm font-medium">{t.subject}</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${t.status === "open" ? "bg-accent/10 text-accent" : "bg-game-green/10 text-game-green"}`}>{t.status}</span>
+                      <p className="text-foreground text-xs font-medium">{t.subject}</p>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${t.status === "open" ? "bg-accent/10 text-accent" : "bg-game-green/10 text-game-green"}`}>{t.status}</span>
                     </div>
-                    {t.admin_reply && <p className="text-game-green text-xs mt-1">Admin: {t.admin_reply}</p>}
+                    {t.admin_reply && <p className="text-game-green text-[10px] mt-1">↳ {t.admin_reply}</p>}
                   </div>
                 ))}
               </div>
@@ -260,17 +268,22 @@ const ProfilePage = () => {
           </motion.div>
         )}
 
+        {/* Admin */}
         {isAdmin && (
-          <motion.button onClick={() => navigate("/admin")} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full bg-card rounded-xl p-4 flex items-center gap-3 hover:bg-secondary/50 transition-colors border border-border/50">
-            <div className="w-9 h-9 bg-accent/10 rounded-xl flex items-center justify-center"><Settings className="w-4 h-4 text-accent" /></div>
-            <div className="text-left"><p className="text-foreground font-medium text-sm">Admin Dashboard</p></div>
+          <motion.button initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} onClick={() => navigate("/admin")} className="w-full bg-card rounded-xl p-4 flex items-center justify-between hover:bg-secondary/50 transition-colors border border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-accent/20 rounded-xl flex items-center justify-center"><Shield className="w-4 h-4 text-accent" /></div>
+              <div className="text-left"><p className="text-foreground font-medium text-sm">Admin Dashboard</p><p className="text-muted-foreground text-xs">Manage everything</p></div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </motion.button>
         )}
 
-        <button onClick={signOut} className="w-full bg-card rounded-xl p-4 flex items-center gap-3 hover:bg-destructive/5 transition-colors border border-border/50">
-          <div className="w-9 h-9 bg-destructive/10 rounded-xl flex items-center justify-center"><LogOut className="w-4 h-4 text-destructive" /></div>
+        {/* Logout */}
+        <motion.button initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }} onClick={signOut} className="w-full bg-destructive/10 rounded-xl p-4 flex items-center gap-3 hover:bg-destructive/20 transition-colors border border-destructive/20">
+          <div className="w-9 h-9 bg-destructive/20 rounded-xl flex items-center justify-center"><LogOut className="w-4 h-4 text-destructive" /></div>
           <p className="text-destructive font-medium text-sm">Logout</p>
-        </button>
+        </motion.button>
       </div>
     </div>
   );
