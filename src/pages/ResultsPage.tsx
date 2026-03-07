@@ -8,9 +8,9 @@ const ResultsPage = () => {
       <Header title="रिज़ल्ट" />
       
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-4 pt-3">
-        <div className="bg-card rounded-2xl p-4 mb-4 border border-border/50 shadow-sm">
-          <h2 className="font-display font-bold text-foreground mb-1">📊 Result Chart</h2>
-          <p className="text-muted-foreground text-xs">सभी गेम्स के नतीजे देखें और डाउनलोड करें। Login ज़रूरी नहीं!</p>
+        <div className="bg-card rounded-2xl p-4 mb-2 border border-border/50 shadow-sm">
+          <h2 className="font-display font-bold text-foreground mb-1">📊 Monthly Result Chart</h2>
+          <p className="text-muted-foreground text-xs">महीने के हिसाब से नतीजे देखें, CSV या PNG में डाउनलोड करें</p>
         </div>
       </motion.div>
 
